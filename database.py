@@ -1,51 +1,52 @@
 import os
-import sqlite3
-from contextlib import contextmanager
 from typing import Optional
 
-
-def _propedge_conn() -> sqlite3.Connection:
-    path = os.environ.get("PROPEDGE_DB_PATH", "")
-    if not path:
-        raise RuntimeError("PROPEDGE_DB_PATH is not set")
-    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    return conn
+import httpx
 
 
-@contextmanager
-def get_db():
-    conn = _propedge_conn()
+def _backend_url() -> str:
+    url = os.environ.get("PROPEDGE_BACKEND_URL", "").rstrip("/")
+    if not url:
+        raise RuntimeError("PROPEDGE_BACKEND_URL is not set")
+    return url
+
+
+def get_slate(sport: str, tier: Optional[str] = None) -> dict:
+    """
+    Calls GET {PROPEDGE_BACKEND_URL}/api/v1/slate/{sport}/prizepicks/today
+    Returns {"sport", "date", "generated_at", "picks": [...]}.
+    Tier filter is applied client-side.
+    """
+    url = f"{_backend_url()}/api/v1/slate/{sport}/prizepicks/today"
     try:
-        yield conn
-    finally:
-        conn.close()
+        resp = httpx.get(url, timeout=10)
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"PropEdge backend unavailable: {exc}")
+
+    data = resp.json()
+    picks = data.get("picks", [])
+    if tier:
+        picks = [p for p in picks if p.get("confidence_tier", "").upper() == tier.upper()]
+
+    return {
+        "sport": sport,
+        "date": data.get("date", ""),
+        "generated_at": data.get("generated_at", ""),
+        "picks": picks,
+    }
 
 
-def get_picks(sport: str, date: str, tier: Optional[str] = None) -> list[dict]:
-    with get_db() as conn:
-        sql = "SELECT * FROM picks WHERE sport = ? AND date = ?"
-        params: list = [sport, date]
-        if tier:
-            sql += " AND confidence_tier = ?"
-            params.append(tier.upper())
-        rows = conn.execute(sql, params).fetchall()
-        return [dict(row) for row in rows]
+def get_slate_status(sport: str) -> dict:
+    """
+    Calls GET {PROPEDGE_BACKEND_URL}/api/v1/slate/status
+    Returns {"status", "pick_count", "date"}.
+    """
+    url = f"{_backend_url()}/api/v1/slate/status"
+    try:
+        resp = httpx.get(url, timeout=10)
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"PropEdge backend unavailable: {exc}")
 
-
-def get_pick_count(sport: str, date: str) -> int:
-    with get_db() as conn:
-        row = conn.execute(
-            "SELECT COUNT(*) FROM picks WHERE sport = ? AND date = ?",
-            (sport, date),
-        ).fetchone()
-        return row[0] if row else 0
-
-
-def get_slate_status(sport: str, date: str) -> Optional[dict]:
-    with get_db() as conn:
-        row = conn.execute(
-            "SELECT * FROM slate_status WHERE sport = ? AND date = ?",
-            (sport, date),
-        ).fetchone()
-        return dict(row) if row else None
+    return resp.json()
