@@ -1,9 +1,21 @@
-import os
-from fastapi import FastAPI
-from routes import props, keys
-from middleware.auth import APIKeyMiddleware
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="propedge-api", version="0.1.0")
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from fastapi import FastAPI
+from middleware.auth import APIKeyMiddleware, init_keys_db
+from routes import props, keys
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_keys_db()
+    yield
+
+
+app = FastAPI(title="propedge-api", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(APIKeyMiddleware)
 

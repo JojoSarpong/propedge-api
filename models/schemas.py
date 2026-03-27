@@ -1,28 +1,41 @@
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import date
+from typing import List, Literal, Optional
 
 
-class Prop(BaseModel):
-    id: int
-    player_name: str
-    team: str
-    opponent: str
-    stat_type: str
+class PickResponse(BaseModel):
+    player: str
+    prop: str
     line: float
-    game_date: date
-    source: Optional[str] = None
+    side: str
+    hit_probability: float
+    edge_pct: float
+    tier: str
+    reasoning: str
 
 
-class PropList(BaseModel):
-    props: List[Prop]
+class PropListResponse(BaseModel):
+    date: str
+    sport: str
+    generated_at: str
+    picks: List[PickResponse]
+
+
+class SlateStatusResponse(BaseModel):
+    sport: str
+    date: str
+    status: str
+    pick_count: int
+    generated_at: Optional[str] = None
 
 
 class KeyProvisionRequest(BaseModel):
-    label: str
+    owner_email: str
+    tier: Literal["free", "pro"] = "free"
 
 
 class KeyProvisionResponse(BaseModel):
     key: str
-    label: str
+    owner_email: str
+    tier: str
     created_at: str
+    note: str = "Store this key securely — it will not be shown again."
