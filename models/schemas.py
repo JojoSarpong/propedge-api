@@ -24,7 +24,7 @@ class SlateStatusResponse(BaseModel):
     sport: str
     date: str
     status: str
-    pick_count: int
+    pick_count: int = 0
     generated_at: Optional[str] = None
 
 

@@ -24,19 +24,28 @@ def get_db():
 
 def get_picks(sport: str, date: str, tier: Optional[str] = None) -> list[dict]:
     with get_db() as conn:
-        sql = "SELECT * FROM picks WHERE sport = ? AND game_date = ?"
+        sql = "SELECT * FROM picks WHERE sport = ? AND date = ?"
         params: list = [sport, date]
         if tier:
-            sql += " AND tier = ?"
+            sql += " AND confidence_tier = ?"
             params.append(tier.upper())
         rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
 
 
+def get_pick_count(sport: str, date: str) -> int:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM picks WHERE sport = ? AND date = ?",
+            (sport, date),
+        ).fetchone()
+        return row[0] if row else 0
+
+
 def get_slate_status(sport: str, date: str) -> Optional[dict]:
     with get_db() as conn:
         row = conn.execute(
-            "SELECT * FROM slate_status WHERE sport = ? AND game_date = ?",
+            "SELECT * FROM slate_status WHERE sport = ? AND date = ?",
             (sport, date),
         ).fetchone()
         return dict(row) if row else None

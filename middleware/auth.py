@@ -91,7 +91,7 @@ def _allow_request(key_hash: str, tier: str) -> bool:
 # Middleware
 # ---------------------------------------------------------------------------
 
-EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/v1/props/today/status"}
+EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/v1/props/today/status", "/v1/keys/provision"}
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):

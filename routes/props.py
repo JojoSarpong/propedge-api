@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Query, Request, HTTPException
 
-from database import get_picks, get_slate_status
+from database import get_picks, get_slate_status, get_pick_count
 from models.schemas import PickResponse, PropListResponse, SlateStatusResponse
 
 router = APIRouter(tags=["props"])
@@ -15,13 +15,13 @@ def _today() -> str:
 
 def _row_to_pick(row: dict) -> PickResponse:
     return PickResponse(
-        player=row["player"],
-        prop=row["prop"],
+        player=row["player_name"],
+        prop=row["prop_type"],
         line=row["line"],
         side=row["side"],
         hit_probability=row["hit_probability"],
         edge_pct=row["edge_pct"],
-        tier=row["tier"],
+        tier=row["confidence_tier"],
         reasoning=row["reasoning"],
     )
 
@@ -44,7 +44,7 @@ def get_props_today(
     except RuntimeError:
         pass
 
-    generated_at = slate["created_at"] if slate else today
+    generated_at = slate["updated_at"] if slate else today
 
     return PropListResponse(
         date=today,
@@ -73,10 +73,11 @@ def get_slate_status_route(
             generated_at=None,
         )
 
+    pick_count = get_pick_count(sport=sport, date=today)
     return SlateStatusResponse(
         sport=sport,
         date=today,
         status=slate.get("status", "unknown"),
-        pick_count=slate.get("pick_count", 0),
-        generated_at=slate.get("created_at"),
+        pick_count=pick_count,
+        generated_at=slate.get("updated_at"),
     )
