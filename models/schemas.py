@@ -28,6 +28,17 @@ class SlateStatusResponse(BaseModel):
     generated_at: Optional[str] = None
 
 
+class V2PickResult(BaseModel):
+    player: str
+    prop: str
+    line: float
+    side: str
+    hit_probability: float
+    edge_pct: float
+    confidence_tier: Literal['STRONG', 'SOLID', 'LEAN', 'SKIP']
+    reasoning: str
+
+
 class KeyProvisionRequest(BaseModel):
     owner_email: str
     tier: Literal["free", "pro"] = "free"
