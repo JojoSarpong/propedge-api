@@ -22,7 +22,7 @@ def get_slate(sport: str, tier: Optional[str] = None) -> dict:
         resp = httpx.get(url, timeout=10)
         resp.raise_for_status()
     except httpx.HTTPError as exc:
-        raise RuntimeError(f"PropEdge backend unavailable: {exc}")
+        raise RuntimeError("PropEdge backend unavailable")
 
     data = resp.json()
     picks = data.get("picks", [])
@@ -47,6 +47,6 @@ def get_slate_status(sport: str) -> dict:
         resp = httpx.get(url, timeout=10)
         resp.raise_for_status()
     except httpx.HTTPError as exc:
-        raise RuntimeError(f"PropEdge backend unavailable: {exc}")
+        raise RuntimeError("PropEdge backend unavailable")
 
     return resp.json()

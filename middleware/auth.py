@@ -78,7 +78,7 @@ def _allow_request(key_hash: str, tier: str) -> bool:
     now = time.monotonic()
     with _rate_lock:
         entry = _rate_store.get(key_hash)
-        if entry is None or now - entry["window_start"] >= 60:
+        if entry is None or now - entry["window_start"] >= 86400:
             _rate_store[key_hash] = {"count": 1, "window_start": now}
             return True
         if entry["count"] >= limit:
@@ -91,11 +91,40 @@ def _allow_request(key_hash: str, tier: str) -> bool:
 # Middleware
 # ---------------------------------------------------------------------------
 
-EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/v1/props/today/status", "/v1/keys/provision"}
+EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/v1/keys/provision"}
+
+STATUS_THROTTLE_LIMIT = 60
+STATUS_THROTTLE_WINDOW = 60
+
+# {ip: {"count": int, "window_start": float}}
+_status_rate_store: dict[str, dict] = {}
+_status_rate_lock = threading.Lock()
+
+
+def _allow_status_request(ip: str) -> bool:
+    now = time.monotonic()
+    with _status_rate_lock:
+        entry = _status_rate_store.get(ip)
+        if entry is None or now - entry["window_start"] >= STATUS_THROTTLE_WINDOW:
+            _status_rate_store[ip] = {"count": 1, "window_start": now}
+            return True
+        if entry["count"] >= STATUS_THROTTLE_LIMIT:
+            return False
+        entry["count"] += 1
+        return True
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.url.path == "/v1/props/today/status":
+            ip = request.client.host if request.client else "unknown"
+            if not _allow_status_request(ip):
+                return JSONResponse(
+                    {"detail": f"Rate limit exceeded ({STATUS_THROTTLE_LIMIT} req/{STATUS_THROTTLE_WINDOW}s)"},
+                    status_code=429,
+                )
+            return await call_next(request)
+
         if request.url.path in EXEMPT_PATHS:
             return await call_next(request)
 

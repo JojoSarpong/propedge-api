@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -25,7 +25,7 @@ def _row_to_pick(p: dict) -> PickResponse:
 def get_props_today(
     request: Request,
     sport: str = Query(..., description="Sport slug, e.g. tennis or nba"),
-    tier: Optional[str] = Query(None, description="Filter by tier: STRONG, LEAN, etc."),
+    tier: Optional[Literal["STRONG", "SOLID", "LEAN", "SKIP"]] = Query(None, description="Filter by tier: STRONG, SOLID, LEAN, SKIP"),
 ):
     try:
         slate = get_slate(sport=sport, tier=tier)
