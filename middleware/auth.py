@@ -9,7 +9,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-RATE_LIMITS: dict[str, int] = {"free": 10, "pro": 60}
+RATE_LIMITS: dict[str, int] = {"free": 10, "pro": 60, "ultra": 500}
+
+# RapidAPI subscription plan → internal tier
+RAPIDAPI_PLAN_MAP: dict[str, str] = {
+    "basic": "free",
+    "pro": "pro",
+    "ultra": "ultra",
+}
 
 # {key_hash: {"count": int, "window_start": float}}
 _rate_store: dict[str, dict] = {}
@@ -114,6 +121,35 @@ def _allow_status_request(ip: str) -> bool:
         return True
 
 
+def _handle_rapidapi(request: Request) -> JSONResponse | None:
+    """
+    Validates a RapidAPI-proxied request.
+    Returns a JSONResponse error if validation fails, or None to allow through.
+    Sets request.state.key_tier on success.
+    """
+    expected_secret = os.environ.get("RAPIDAPI_PROXY_SECRET", "")
+    incoming_secret = request.headers.get("X-RapidAPI-Proxy-Secret", "")
+
+    if not expected_secret or incoming_secret != expected_secret:
+        return JSONResponse({"detail": "Invalid RapidAPI proxy secret"}, status_code=403)
+
+    plan = request.headers.get("X-RapidAPI-Subscription-Plan", "").lower()
+    tier = RAPIDAPI_PLAN_MAP.get(plan, "free")
+
+    rapid_user = request.headers.get("X-RapidAPI-User", "rapidapi-unknown")
+    rate_key = f"rapidapi:{rapid_user}"
+
+    if not _allow_request(rate_key, tier):
+        limit = RATE_LIMITS.get(tier, 10)
+        return JSONResponse(
+            {"detail": f"Rate limit exceeded ({limit} req/day for {tier} tier)"},
+            status_code=429,
+        )
+
+    request.state.key_tier = tier
+    return None
+
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path == "/v1/props/today/status":
@@ -126,6 +162,12 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         if request.url.path in EXEMPT_PATHS:
+            return await call_next(request)
+
+        if request.headers.get("X-RapidAPI-Proxy-Secret"):
+            error = _handle_rapidapi(request)
+            if error:
+                return error
             return await call_next(request)
 
         raw_key = request.headers.get("X-API-Key")
