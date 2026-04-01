@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
+from enrichment import init_reasoning_cache
 from middleware.auth import APIKeyMiddleware, init_keys_db
 from routes import props, keys
 
@@ -12,6 +13,7 @@ from routes import props, keys
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_keys_db()
+    init_reasoning_cache()
     yield
 
 

@@ -1,7 +1,11 @@
 import os
+from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import httpx
+
+_ET = ZoneInfo("America/New_York")
 
 
 def _backend_url() -> str:
@@ -11,15 +15,21 @@ def _backend_url() -> str:
     return url
 
 
+def _et_today() -> str:
+    """Return today's date string (YYYY-MM-DD) in US Eastern time."""
+    return datetime.now(_ET).strftime("%Y-%m-%d")
+
+
 def get_slate(sport: str, tier: Optional[str] = None) -> dict:
     """
     Calls GET {PROPEDGE_BACKEND_URL}/api/v1/slate/{sport}/prizepicks/today
+    Passes ?date= in ET so the backend's date filter matches the cron's date.
     Returns {"sport", "date", "generated_at", "picks": [...]}.
     Tier filter is applied client-side.
     """
     url = f"{_backend_url()}/api/v1/slate/{sport}/prizepicks/today"
     try:
-        resp = httpx.get(url, timeout=10)
+        resp = httpx.get(url, params={"date": _et_today()}, timeout=10)
         resp.raise_for_status()
     except httpx.HTTPError as exc:
         raise RuntimeError("PropEdge backend unavailable")

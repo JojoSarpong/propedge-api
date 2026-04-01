@@ -10,7 +10,7 @@ class PickResponse(BaseModel):
     hit_probability: float
     edge_pct: float
     tier: str
-    reasoning: str
+    reasoning: Optional[str] = None
 
 
 class PropListResponse(BaseModel):
