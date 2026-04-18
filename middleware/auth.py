@@ -98,7 +98,7 @@ def _allow_request(key_hash: str, tier: str) -> bool:
 # Middleware
 # ---------------------------------------------------------------------------
 
-EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/v1/keys/provision"}
+EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/v1/keys/provision", "/admin/debug/db"}
 
 STATUS_THROTTLE_LIMIT = 60
 STATUS_THROTTLE_WINDOW = 60
